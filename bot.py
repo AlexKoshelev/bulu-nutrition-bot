@@ -110,7 +110,7 @@ def analyze_image_openai(image_url, caption=None, retries=3, delay=2):
     for attempt in range(retries):
         try:
             # Log the image URL being sent
-            logging.info(f"Sending image URL to OpenAI Vision API: {image_url}")
+            logging.info(f"Попытка {attempt + 1} из {retries}: Отправка изображения в OpenAI Vision API: {image_url}")
             
             # Prepare the text content
             text_content = "Проверь изображение."
@@ -130,18 +130,18 @@ def analyze_image_openai(image_url, caption=None, retries=3, delay=2):
                 max_tokens=1000,
             )
 
-            logging.info(f"OpenAI Vision response: {response}")
+            logging.info(f"OpenAI Vision ответ получен успешно на попытке {attempt + 1}")
 
             # Extract and return the text result
             return response.choices[0].message.content.strip()
 
         except Exception as e:
-            logging.error(f"Error analyzing image with OpenAI Vision on attempt {attempt + 1}: {str(e)}")
+            logging.error(f"Ошибка анализа изображения с OpenAI Vision на попытке {attempt + 1}: {str(e)}")
             if attempt < retries - 1:
-                logging.info(f"Retrying in {delay} seconds...")
+                logging.info(f"Повторная попытка через {delay} секунд... (попытка {attempt + 2} из {retries})")
                 time.sleep(delay)
             else:
-                logging.error("Max retries reached. Failed to analyze image.")
+                logging.error(f"Достигнуто максимальное количество попыток ({retries}). Не удалось проанализировать изображение.")
                 return None
 
 
@@ -176,12 +176,16 @@ def process_photo(message_or_post):
             bot.reply_to(message_or_post, "Failed to upload image to ImgBB.")
             return
 
-        # Analyze image using OpenAI Vision API with caption
-        analysis_result = analyze_image_openai(image_url, caption)
+        # Analyze image using OpenAI Vision API with caption and retry logic
+        logging.info("Начинаю анализ изображения с OpenAI Vision API...")
+        analysis_result = analyze_image_openai(image_url, caption, retries=3, delay=2)
+        
         if analysis_result:
+            logging.info("Анализ изображения завершен успешно")
             bot.reply_to(message_or_post, f"\n{analysis_result}")
         else:
-            bot.reply_to(message_or_post, "Failed to analyze image using OpenAI Vision API.")
+            logging.error("Все попытки анализа изображения не удались")
+            bot.reply_to(message_or_post, "К сожалению, я не могу проанализировать это изображение")
 
     except Exception as e:
         logging.error(f"Error handling photo: {str(e)}")
